@@ -1,11 +1,13 @@
 # sre-scaffold
 
-自动化部署工具。中控机 `wget` 下载 → 执行 `install.sh` → 启动 Web 界面 → 完成全部部署。
+自动化部署工具。
+
+master机 `wget` 下载 → 执行 `install.sh` → 启动 Web 界面 → 完成全部部署。
 
 ## 部署流程
 
 ```
-用户中控机（可访问外网）
+用户master机（可访问外网）
   │
   ├─ wget 下载 sre-scaffold
   ├─ bash install.sh          # 安装依赖、构建 Go CLI、启动 Web
