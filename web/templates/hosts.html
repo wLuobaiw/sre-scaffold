@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block steps %}
+<span class="step done">1. 选择组件 ✓</span>
+<span class="step-divider">→</span>
+<span class="step active">2. 配置主机</span>
+<span class="step-divider">→</span>
+<span class="step">3. 详细配置</span>
+<span class="step-divider">→</span>
+<span class="step">4. 确认部署</span>
+{% endblock %}
+
+{% block content %}
+<h2>步骤 2 —— 配置目标主机</h2>
+
+<form method="POST" action="{{ url_for('hosts') }}" id="hosts-form">
+    <div id="host-list">
+        <!-- 动态添加的主机条目由 JS 渲染 -->
+    </div>
+
+    <button type="button" class="btn btn-outline" onclick="addHost()">
+        + 添加主机
+    </button>
+    <button type="button" class="btn btn-outline" onclick="checkAllHosts()">
+        检测全部主机
+    </button>
+
+    <div class="form-actions has-prev">
+        <a href="{{ url_for('select') }}" class="btn">← 上一步</a>
+        <button type="submit" class="btn btn-primary">下一步 →</button>
+    </div>
+</form>
+
+<!-- 主机条目模板（JS 用） -->
+<template id="host-template">
+    <div class="host-card" data-index="{i}">
+        <div class="host-fields">
+            <label>IP / 主机名
+                <input type="text" name="host_{i}_ip" placeholder="192.168.1.10" required>
+            </label>
+            <label>SSH 用户
+                <input type="text" name="host_{i}_user" value="root" required>
+            </label>
+            <label>SSH 密码
+                <input type="password" name="host_{i}_password" placeholder="输入 SSH 密码" required>
+            </label>
+            <label>SSH 端口
+                <input type="number" name="host_{i}_port" value="22" required>
+            </label>
+        </div>
+        <div class="host-check-result" id="check-result-{i}"></div>
+        <button type="button" class="btn btn-sm btn-danger" onclick="this.closest('.host-card').remove()">
+            删除
+        </button>
+    </div>
+</template>
+{% endblock %}

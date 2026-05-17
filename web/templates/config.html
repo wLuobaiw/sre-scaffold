@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block steps %}
+<span class="step done">1. 选择组件 ✓</span>
+<span class="step-divider">→</span>
+<span class="step done">2. 配置主机 ✓</span>
+<span class="step-divider">→</span>
+<span class="step active">3. 详细配置</span>
+<span class="step-divider">→</span>
+<span class="step">4. 确认部署</span>
+{% endblock %}
+
+{% block content %}
+<h2>步骤 3 —— 逐组件详细配置</h2>
+
+<form method="POST" action="{{ url_for('config') }}">
+    {% for comp in components %}
+    <fieldset class="config-section {% if comp.no_config %}no-config{% endif %}"
+              id="config-{{ comp.key }}">
+        <legend {% if comp.no_config %}class="collapsed" onclick="toggleConfig('{{ comp.key }}')"{% endif %}>
+            {{ comp.key }} <span class="ver">{{ comp.version }}</span>
+            {% if comp.no_config %}
+            <span class="no-config-tag">无需配置</span>
+            {% endif %}
+        </legend>
+
+        <div class="config-body" {% if comp.no_config %}style="display:none"{% endif %}>
+            <!-- 部署模式 -->
+            <div class="config-row">
+                <label>部署模式</label>
+                <label class="radio-inline">
+                    <input type="radio" name="mode_{{ comp.key }}" value="single" checked
+                           onchange="toggleHostSelect('{{ comp.key }}', this.value)">
+                    单机
+                </label>
+                <label class="radio-inline">
+                    <input type="radio" name="mode_{{ comp.key }}" value="cluster"
+                           onchange="toggleHostSelect('{{ comp.key }}', this.value)">
+                    集群
+                </label>
+            </div>
+
+            <!-- 目标主机选择 -->
+            <div class="config-row host-select-row" id="host-select-{{ comp.key }}">
+                <label>目标主机</label>
+                <div class="host-checkboxes">
+                    {% for h in hosts %}
+                    <label>
+                        <input type="{% if comp.no_config %}checkbox{% else %}radio{% endif %}"
+                               name="hosts_{{ comp.key }}" value="{{ loop.index0 }}"
+                               {% if loop.first %}checked{% endif %}>
+                        {{ h.ip }} ({{ h.ssh_user }}@{{ h.ssh_port }})
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- 专属参数（从 defaults/main.yml 读取，此处为静态占位） -->
+            {% if not comp.no_config %}
+            <div class="config-row">
+                <label>端口</label>
+                <input type="number" name="var_{{ comp.key }}_port" placeholder="默认端口">
+            </div>
+            <div class="config-row">
+                <label>密码</label>
+                <input type="password" name="var_{{ comp.key }}_password" placeholder="设置密码">
+            </div>
+            <div class="config-row">
+                <label>数据目录</label>
+                <input type="text" name="var_{{ comp.key }}_data_dir" placeholder="/data/{{ comp.key }}">
+            </div>
+            {% endif %}
+        </div>
+    </fieldset>
+    {% endfor %}
+
+    <div class="form-actions has-prev">
+        <a href="{{ url_for('hosts') }}" class="btn">← 上一步</a>
+        <button type="submit" class="btn btn-primary">下一步 →</button>
+    </div>
+</form>
+{% endblock %}
