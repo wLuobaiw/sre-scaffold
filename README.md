@@ -56,9 +56,10 @@ sre-scaffold/
     │   ├── registry.py			# 镜像仓库操作：pull/push/distribute
     │   └── stack.py			# YAML 栈定义管理：load/save/generate_inventory
     └── README.md			# Web 模块详细说明
+```
 
 ## 与物料仓库的关系
 
-- `toolkit/` 目录本身就是物料仓库，sre-scaffold 直接读取
+- 需要读取物料仓库的`playbook`、`sh脚本`、`配置信息`等内容进行快速部署
 - 用户在 Web 界面选择的组件/版本，对应 `toolkit/ansible/roles/<组件>/<版本>/`
 - sre-scaffold 执行部署时从物料仓库拉取对应版本的 playbook 和配置模板
