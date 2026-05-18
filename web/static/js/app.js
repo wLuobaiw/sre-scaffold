@@ -158,44 +158,12 @@ function updateFieldVisibility(compKey) {
     const section = document.getElementById("config-" + compKey);
     if (!section) return;
 
-    const mode = section.querySelector(`input[name="mode_${compKey}"]:checked`)?.value || "";
-
     section.querySelectorAll(".config-row[data-show-if]").forEach(row => {
-        const field = row.dataset.showIf;
-        const expected = row.dataset.showValue;
-        // 查找触发字段的当前值（部署模式 / select / checkbox 等）
-        const trigger = section.querySelector(`[name$="_${field}"]`) ||
-                        section.querySelector(`input[name="mode_${compKey}"][value="${mode}"]`);
-        let current = "";
-        if (trigger) {
-            if (trigger.type === "radio") {
-                current = section.querySelector(`input[name="mode_${compKey}"]:checked`)?.value || "";
-            } else if (trigger.type === "checkbox") {
-                current = trigger.checked ? "yes" : "";
-            } else {
-                current = trigger.value;
-            }
-        }
-
-        if (current === expected) {
-            row.style.display = "";
-        } else {
-            row.style.display = "none";
-        }
+        const dependsOn = row.dataset.showIf;
+        const trigger = section.querySelector(`input[name="var_${compKey}_${dependsOn}"]`);
+        if (!trigger) return;
+        row.style.display = trigger.checked ? "" : "none";
     });
-}
-
-function toggleHostSelect(compKey, mode) {
-    const row = document.getElementById(`host-select-${compKey}`);
-    if (!row) return;
-    const checkboxes = row.querySelectorAll('input[type="radio"], input[type="checkbox"]');
-    if (mode === "cluster") {
-        // 集群模式：改为多选
-        checkboxes.forEach(cb => { cb.type = "checkbox"; });
-    } else {
-        // 单机模式：改为单选
-        checkboxes.forEach(cb => { cb.type = "radio"; });
-    }
 }
 
 // ── 步骤 4：部署执行 + 日志流 ──────────────────────────────
@@ -214,9 +182,15 @@ function startDeploy() {
     evtSource.onmessage = function (event) {
         const data = JSON.parse(event.data);
 
-        if (data.type === "layer_start") {
-            logOutput.insertAdjacentHTML("beforeend",
-                `<div class="log-line play">=== ${data.layer} / ${data.item} ===</div>`);
+        if (data.type === "status") {
+            const statusEl = document.querySelector(`#status-${data.comp} .deploy-status`);
+            if (statusEl) {
+                statusEl.className = `deploy-status ${data.status}`;
+                if (data.status === "download") statusEl.textContent = "正在下载...";
+                else if (data.status === "installing") statusEl.textContent = "正在安装...";
+                else if (data.status === "done") statusEl.textContent = "已安装√";
+                else if (data.status === "error") statusEl.textContent = "失败";
+            }
         } else if (data.type === "log") {
             let cls = "";
             if (data.text.startsWith("ok:")) cls = "ok";
@@ -224,6 +198,7 @@ function startDeploy() {
             else if (data.text.startsWith("TASK")) cls = "task";
             else if (data.text.startsWith("PLAY")) cls = "play";
             else if (data.text.startsWith("✓")) cls = "done";
+            else if (data.text.startsWith("→")) cls = "download";
 
             logOutput.insertAdjacentHTML("beforeend",
                 `<div class="log-line ${cls}">${data.text}</div>`);

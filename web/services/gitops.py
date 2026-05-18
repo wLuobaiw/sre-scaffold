@@ -7,8 +7,13 @@ import yaml
 
 
 def ensure_repo(repo_url, local_path):
-    """确保物料仓库在本地存在且最新。
-    存在 → git pull；不存在 → git clone"""
+    """
+    确保物料仓库在本地存在且为最新。已存在则执行 git pull，不存在则 git clone。
+
+    :param repo_url: Git 仓库远程地址
+    :param local_path: 本地存储目录
+    :raises subprocess.CalledProcessError: git 命令执行失败时抛出
+    """
     local = Path(local_path)
 
     if (local / ".git").is_dir():
@@ -29,13 +34,15 @@ def ensure_repo(repo_url, local_path):
 
 
 def scan_components(local_path):
-    """扫描 ansible/roles/ 目录，返回三层结构分类列表。
+    """
+    扫描 ansible/roles/ 目录，返回三层分类组件列表。
+
     目录结构：ansible/roles/<类别>/<组件>/<版本>/tasks/main.yml
 
-    返回格式：[{"name": "System", "key": "system", "components": [
-                  {"name": "Ntp", "key": "ntp", "versions": ["1.0"]},
-                  ...
-               ]}, ...]"""
+    :param local_path: 物料仓库本地路径
+    :return: 分类列表 [{name, key, components: [{name, key, versions}]}]，
+             目录不存在或无有效内容时返回空列表
+    """
     roles_dir = Path(local_path) / "ansible" / "roles"
 
     if not roles_dir.is_dir():
@@ -71,57 +78,63 @@ def scan_components(local_path):
     return categories
 
 
-def load_conf(local_path, category, component, version):
-    """读取组件配置定义文件，供前端 config 页面渲染表单。
-
-    文件路径：ansible/roles/<category>/<component>/<version>/conf.yaml
-
-    完整格式示例::
-
-        fields:
-          - name: port                  # 字段标识（提交时的 key）
-            label: 端口                 # 表单标签
-            type: number                # number / text / password / select / bool / host_select
-            required: true              # 是否必填
-            default: 3306               # 默认值
-            placeholder: "请输入端口"    # 输入提示（可选）
-
-          - name: deploy_type           # select 类型示例
-            label: 部署方式
-            type: select
-            required: true
-            default: "standalone"
-            options:                    # type=select 时必填，选项列表
-              - "standalone"
-              - "replication"
-
-          - name: vip                   # 条件字段示例
-            label: VIP 地址
-            type: text
-            required: true
-            placeholder: "10.0.0.100"
-            show_if:                    # 条件显示：仅当日志部署模式为 cluster 时才渲染此字段
-              field: deploy_mode
-              value: "cluster"
-
-    各 type 对应的 HTML 控件::
-
-        number      → <input type="number">
-        text        → <input type="text">
-        password    → <input type="password">
-        select      → <select>，需配合 options 列表
-        bool        → <input type="checkbox">
-        host_select → <select>，选项自动填入步骤 2 配置的主机 IP
-
-    返回值：dict，key "fields" 为字段定义列表；文件不存在时返回 {"fields": []}。
+def get_component_dir(local_path, category, component, version):
     """
-    conf_path = (
+    根据分类 / 组件 / 版本拼装组件目录路径。
+
+    :param local_path: 物料仓库本地路径
+    :param category: 分类名（system / middleware / ...）
+    :param component: 组件名（nginx / mysql / ...）
+    :param version: 版本号（8.0 / 7.4 / ...）
+    :return: 组件版本目录的 Path 对象
+    """
+    return (
         Path(local_path)
         / "ansible" / "roles" / category / component / version
-        / "conf.yaml"
     )
-    if not conf_path.is_file():
-        return {"fields": []}
 
-    with open(conf_path, "r", encoding="utf-8") as f:
-        return yaml.safe_load(f) or {"fields": []}
+
+def load_conf(comp_dir):
+    """
+    从组件目录读取 conf.yaml，解析为配置字段列表，并做兼容性标准化。
+
+    支持简写：
+      option: [...]             → 标准化为 options: [...]
+      depends_on: <field_name>  → 标准化为 show_if: {field: <field_name>, value: "yes"}
+
+    字段类型映射：number / text / password / select / bool / target_hosts
+     size 参数：非 select 字段控制栅格宽度（12=全行，6=半行）；
+              select+multiple 字段控制可见行数。
+
+    编写示例见 toolkit/template/example_conf.yaml。
+
+    :param comp_dir: get_component_dir 返回的组件目录路径
+    :return: conf.yaml 解析结果 dict，含标准化后的 key "fields"。
+             文件不存在 / 解析失败 / fields 为空时返回 {}。
+    """
+    conf_file = Path(comp_dir) / "conf.yaml"
+
+    if not conf_file.is_file():
+        return {}
+
+    try:
+        with open(conf_file, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+    except (yaml.YAMLError, OSError):
+        return {}
+
+    if not data:
+        return {}
+
+    fields = data.get("fields")
+    if not fields:
+        return {}
+
+    # 标准化：option → options / depends_on → show_if（仅 bool 联动）
+    for field in fields:
+        if "option" in field and "options" not in field:
+            field["options"] = field.pop("option")
+        if "depends_on" in field and "show_if" not in field:
+            field["show_if"] = field.pop("depends_on")
+
+    return data

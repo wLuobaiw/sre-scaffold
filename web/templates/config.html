@@ -24,45 +24,12 @@
         </legend>
 
         <div class="config-body" {% if comp.no_config %}style="display:none"{% endif %}>
-            <!-- 部署模式 -->
-            <div class="config-row">
-                <label>部署模式</label>
-                <div class="radio-group">
-                    <label class="radio-inline">
-                        <input type="radio" name="mode_{{ comp.key }}" value="single" checked
-                               onchange="toggleHostSelect('{{ comp.key }}', this.value); updateFieldVisibility('{{ comp.key }}')">
-                        单机
-                    </label>
-                    <label class="radio-inline">
-                        <input type="radio" name="mode_{{ comp.key }}" value="cluster"
-                               onchange="toggleHostSelect('{{ comp.key }}', this.value); updateFieldVisibility('{{ comp.key }}')">
-                        集群
-                    </label>
-                </div>
-            </div>
-
-            <!-- 目标主机 -->
-            <div class="config-row host-select-row" id="host-select-{{ comp.key }}">
-                <label>目标主机</label>
-                <div class="host-checkboxes">
-                    {% for h in hosts %}
-                    <label>
-                        <input type="radio" name="hosts_{{ comp.key }}"
-                               value="{{ loop.index0 }}"
-                               {% if loop.first %}checked{% endif %}>
-                        {{ h.ip }} ({{ h.ssh_user }}@{{ h.ssh_port }})
-                    </label>
-                    {% endfor %}
-                </div>
-            </div>
-
-            <!-- 动态配置字段（从 conf.yaml 读取） -->
             {% if not comp.no_config %}
+            <div class="config-grid">
             {% for field in comp.fields %}
-            <div class="config-row"
+            <div class="config-row col-{{ field.col | default(12) }}"
                  {% if field.show_if %}
-                 data-show-if="{{ field.show_if.field }}"
-                 data-show-value="{{ field.show_if.value }}"
+                 data-show-if="{{ field.show_if }}"
                  style="display:none"
                  {% endif %}>
                 <label>
@@ -70,18 +37,40 @@
                     {% if field.required %}<span class="required-mark">*</span>{% endif %}
                 </label>
 
-                {% if field.type == "host_select" %}
-                <select name="var_{{ comp.key }}_{{ field.name }}"
-                        {% if field.required %}required{% endif %}>
-                    <option value="">{{ field.placeholder or "请选择主机" }}</option>
+                {% if field.type == "target_hosts" %}
+                {% if field.default and field.default == "all" %}
+                <!-- 全部主机，无需选择 -->
+                <input type="hidden" name="var_{{ comp.key }}_target_hosts" value="all">
+                <span class="hint">全部主机 ({{ hosts|length }} 台)</span>
+                {% else %}
+                <div class="host-checkboxes">
                     {% for h in hosts %}
-                    <option value="{{ h.ip }}">{{ h.ip }} ({{ h.ssh_user }})</option>
+                    <label>
+                        <input type="radio" name="var_{{ comp.key }}_target_hosts"
+                               value="{{ loop.index0 }}"
+                               {% if loop.first %}checked{% endif %}>
+                        {{ h.ip }} ({{ h.ssh_user }}@{{ h.ssh_port }})
+                    </label>
                     {% endfor %}
-                </select>
+                </div>
+                {% endif %}
+
+                {% elif field.type == "select" and field.multiple %}
+                <div class="select-list-box">
+                    {% for opt in field.options %}
+                    <label>
+                        <input type="checkbox" name="var_{{ comp.key }}_{{ field.name }}"
+                               value="{{ opt }}"
+                               {% if opt in (field.default or []) %}checked{% endif %}>
+                        <span>{{ opt }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
 
                 {% elif field.type == "select" %}
                 <select name="var_{{ comp.key }}_{{ field.name }}"
-                        {% if field.required %}required{% endif %}>
+                        {% if field.required %}required{% endif %}
+                        onchange="updateFieldVisibility('{{ comp.key }}')">
                     <option value="">{{ field.placeholder or "请选择" }}</option>
                     {% for opt in field.options %}
                     <option value="{{ opt }}" {% if opt == field.default|string %}selected{% endif %}>
@@ -94,7 +83,8 @@
                 <label class="checkbox-inline">
                     <input type="checkbox" name="var_{{ comp.key }}_{{ field.name }}"
                            value="yes"
-                           {% if field.default %}checked{% endif %}>
+                           {% if field.default %}checked{% endif %}
+                           onchange="updateFieldVisibility('{{ comp.key }}')">
                     {{ field.placeholder or "启用" }}
                 </label>
 
@@ -107,6 +97,7 @@
                 {% endif %}
             </div>
             {% endfor %}
+            </div>
             {% endif %}
         </div>
     </fieldset>

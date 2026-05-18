@@ -27,32 +27,17 @@
 
         <div class="summary-section">
             <strong>部署内容</strong>
-            <table class="summary-table">
-                <thead>
-                    <tr>
-                        <th>组件</th>
-                        <th>版本</th>
-                        <th>模式</th>
-                        <th>目标</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in summary_items %}
-                    <tr>
-                        <td>{{ item.key }}</td>
-                        <td>{{ item.version }}</td>
-                        <td>{{ item.deploy_mode }}</td>
-                        <td>
-                            {% for idx in item.target_hosts %}
-                                {% if idx|int < hosts|length %}
-                                {{ hosts[idx|int].ip }}{% if not loop.last %}, {% endif %}
-                                {% endif %}
-                            {% endfor %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+            {% for group in deploy_groups %}
+            <div class="deploy-group">
+                <span class="deploy-cat">{{ group.category }}:</span>
+                {% for item in group.items %}
+                <div class="deploy-item" id="status-{{ item.key }}">
+                    <span>  {{ item.key }}[{{ item.version }}]</span>
+                    <span class="deploy-status waiting">等待执行</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endfor %}
         </div>
 
         <div class="form-actions has-prev">
