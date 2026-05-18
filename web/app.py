@@ -2,47 +2,21 @@
 
 import json
 import time
-from pathlib import Path
 
 from flask import (
     Flask, jsonify, redirect, render_template, request, session, Response,
 )
 
-from config import MATERIALS_LOCAL_PATH
+from config import MATERIALS_REPO_URL, MATERIALS_LOCAL_PATH
+from services.gitops import ensure_repo, scan_components, load_conf
 
 app = Flask(__name__)
 app.config.from_object("config")
 
-# ── 模拟数据（后期替换为 services 模块调用） ──────────────────────
 
-BASE_PLATFORM = [
-    {"name": "NTP", "key": "ntp", "category": "system", "no_config": True},
-    {"name": "DNS", "key": "dns", "category": "system", "no_config": True},
-    {"name": "Docker", "key": "docker", "category": "ops", "no_config": True},
-]
-
-
-def get_available_middleware():
-    """扫描 scaffold-materials 目录，返回可用组件列表。
-    后期由 services/gitops.py 实现。"""
-    materials = Path(MATERIALS_LOCAL_PATH)
-    roles_dir = materials / "ansible" / "roles"
-    result = []
-    if roles_dir.is_dir():
-        for component in sorted(roles_dir.iterdir()):
-            if component.is_dir():
-                versions = [
-                    v.name for v in sorted(component.iterdir())
-                    if v.is_dir()
-                ]
-                if versions:
-                    result.append({
-                        "name": component.name.capitalize(),
-                        "key": component.name,
-                        "category": "middleware",
-                        "versions": versions,
-                    })
-    return result
+def get_categories():
+    """扫描物料仓库，返回三层分类列表。"""
+    return scan_components(MATERIALS_LOCAL_PATH)
 
 
 # ── 路由 ──────────────────────────────────────────────────────────
@@ -56,24 +30,41 @@ def index():
 
 @app.route("/select", methods=["GET", "POST"])
 def select():
-    middleware = get_available_middleware()
+    # 每次进入选择页时拉取最新物料仓库
+    clone_error = None
+    try:
+        ensure_repo(MATERIALS_REPO_URL, MATERIALS_LOCAL_PATH)
+    except Exception as e:
+        clone_error = f"物料仓库拉取失败: {e}"
+
+    categories = get_categories()
 
     if request.method == "POST":
         selected = request.form.getlist("components")
         versions = {}
+        comp_categories = {}
         for comp in selected:
             v = request.form.get(f"version_{comp}")
             if v:
                 versions[comp] = v
-        # 基础平台默认全选
+        # 记录每个组件所属类别 + 系统组件标记（无需 config）
+        system_keys = set()
+        for cat in categories:
+            for c in cat["components"]:
+                if c["key"] in selected:
+                    comp_categories[c["key"]] = cat["key"]
+            if cat["key"] == "system":
+                system_keys = {c["key"] for c in cat["components"]}
+        session["no_config_keys"] = list(system_keys)
+        session["component_categories"] = comp_categories
         session["selected_components"] = selected
         session["component_versions"] = versions
         return redirect("/hosts")
 
     return render_template(
         "select.html",
-        base_platform=BASE_PLATFORM,
-        middleware=middleware,
+        categories=categories,
+        clone_error=clone_error,
     )
 
 
@@ -150,13 +141,20 @@ def config():
         session["component_configs"] = configs
         return redirect("/deploy")
 
-    # 渲染时标记哪些组件无需配置
-    no_config_keys = {c["key"] for c in BASE_PLATFORM}
+    # 系统组件（来自 system 类别）无需配置，其余组件读取 conf.yaml
+    no_config_keys = set(session.get("no_config_keys", []))
+    categories = session.get("component_categories", {})
     config_items = []
     for key in components:
-        comp_info = {"key": key, "version": versions.get(key, "latest")}
-        comp_info["no_config"] = key in no_config_keys
-        config_items.append(comp_info)
+        info = {"key": key, "version": versions.get(key, "latest")}
+        info["no_config"] = key in no_config_keys
+        if not info["no_config"]:
+            cat = categories.get(key, "middleware")
+            conf = load_conf(
+                MATERIALS_LOCAL_PATH, cat, key, info["version"]
+            )
+            info["fields"] = conf.get("fields", [])
+        config_items.append(info)
 
     return render_template(
         "config.html",

@@ -27,26 +27,28 @@
             <!-- 部署模式 -->
             <div class="config-row">
                 <label>部署模式</label>
-                <label class="radio-inline">
-                    <input type="radio" name="mode_{{ comp.key }}" value="single" checked
-                           onchange="toggleHostSelect('{{ comp.key }}', this.value)">
-                    单机
-                </label>
-                <label class="radio-inline">
-                    <input type="radio" name="mode_{{ comp.key }}" value="cluster"
-                           onchange="toggleHostSelect('{{ comp.key }}', this.value)">
-                    集群
-                </label>
+                <div class="radio-group">
+                    <label class="radio-inline">
+                        <input type="radio" name="mode_{{ comp.key }}" value="single" checked
+                               onchange="toggleHostSelect('{{ comp.key }}', this.value); updateFieldVisibility('{{ comp.key }}')">
+                        单机
+                    </label>
+                    <label class="radio-inline">
+                        <input type="radio" name="mode_{{ comp.key }}" value="cluster"
+                               onchange="toggleHostSelect('{{ comp.key }}', this.value); updateFieldVisibility('{{ comp.key }}')">
+                        集群
+                    </label>
+                </div>
             </div>
 
-            <!-- 目标主机选择 -->
+            <!-- 目标主机 -->
             <div class="config-row host-select-row" id="host-select-{{ comp.key }}">
                 <label>目标主机</label>
                 <div class="host-checkboxes">
                     {% for h in hosts %}
                     <label>
-                        <input type="{% if comp.no_config %}checkbox{% else %}radio{% endif %}"
-                               name="hosts_{{ comp.key }}" value="{{ loop.index0 }}"
+                        <input type="radio" name="hosts_{{ comp.key }}"
+                               value="{{ loop.index0 }}"
                                {% if loop.first %}checked{% endif %}>
                         {{ h.ip }} ({{ h.ssh_user }}@{{ h.ssh_port }})
                     </label>
@@ -54,20 +56,57 @@
                 </div>
             </div>
 
-            <!-- 专属参数（从 defaults/main.yml 读取，此处为静态占位） -->
+            <!-- 动态配置字段（从 conf.yaml 读取） -->
             {% if not comp.no_config %}
-            <div class="config-row">
-                <label>端口</label>
-                <input type="number" name="var_{{ comp.key }}_port" placeholder="默认端口">
+            {% for field in comp.fields %}
+            <div class="config-row"
+                 {% if field.show_if %}
+                 data-show-if="{{ field.show_if.field }}"
+                 data-show-value="{{ field.show_if.value }}"
+                 style="display:none"
+                 {% endif %}>
+                <label>
+                    {{ field.label }}
+                    {% if field.required %}<span class="required-mark">*</span>{% endif %}
+                </label>
+
+                {% if field.type == "host_select" %}
+                <select name="var_{{ comp.key }}_{{ field.name }}"
+                        {% if field.required %}required{% endif %}>
+                    <option value="">{{ field.placeholder or "请选择主机" }}</option>
+                    {% for h in hosts %}
+                    <option value="{{ h.ip }}">{{ h.ip }} ({{ h.ssh_user }})</option>
+                    {% endfor %}
+                </select>
+
+                {% elif field.type == "select" %}
+                <select name="var_{{ comp.key }}_{{ field.name }}"
+                        {% if field.required %}required{% endif %}>
+                    <option value="">{{ field.placeholder or "请选择" }}</option>
+                    {% for opt in field.options %}
+                    <option value="{{ opt }}" {% if opt == field.default|string %}selected{% endif %}>
+                        {{ opt }}
+                    </option>
+                    {% endfor %}
+                </select>
+
+                {% elif field.type == "bool" %}
+                <label class="checkbox-inline">
+                    <input type="checkbox" name="var_{{ comp.key }}_{{ field.name }}"
+                           value="yes"
+                           {% if field.default %}checked{% endif %}>
+                    {{ field.placeholder or "启用" }}
+                </label>
+
+                {% else %}
+                <input type="{{ field.type }}"
+                       name="var_{{ comp.key }}_{{ field.name }}"
+                       value="{{ field.default or '' }}"
+                       placeholder="{{ field.placeholder or '' }}"
+                       {% if field.required %}required{% endif %}>
+                {% endif %}
             </div>
-            <div class="config-row">
-                <label>密码</label>
-                <input type="password" name="var_{{ comp.key }}_password" placeholder="设置密码">
-            </div>
-            <div class="config-row">
-                <label>数据目录</label>
-                <input type="text" name="var_{{ comp.key }}_data_dir" placeholder="/data/{{ comp.key }}">
-            </div>
+            {% endfor %}
             {% endif %}
         </div>
     </fieldset>

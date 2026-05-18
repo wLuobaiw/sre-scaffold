@@ -9,11 +9,11 @@ DEBUG = os.environ.get("DEBUG", "true").lower() == "true"
 # 物料仓库
 MATERIALS_REPO_URL = os.environ.get(
     "MATERIALS_REPO_URL",
-    "https://github.com/example/scaffold-materials.git",
+    "https://github.com/wLuobaiw/toolkit.git",
 )
 MATERIALS_LOCAL_PATH = os.environ.get(
     "MATERIALS_LOCAL_PATH",
-    os.path.join(os.path.dirname(__file__), "..", "..", "..", "toolkit"),
+    os.path.join(os.path.dirname(__file__), "..", "toolkit"),
 )
 
 # 镜像仓库

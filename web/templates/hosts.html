@@ -13,15 +13,25 @@
 <h2>步骤 2 —— 配置目标主机</h2>
 
 <form method="POST" action="{{ url_for('hosts') }}" id="hosts-form">
+    <div class="import-bar">
+        <label class="btn btn-sm btn-outline">
+            导入主机
+            <input type="file" accept=".txt" style="display:none"
+                   onchange="importHosts(this)">
+        </label>
+        <button type="button" class="btn btn-sm btn-outline" onclick="downloadTemplate()">
+            ↓ 下载模板
+        </button>
+        <span class="import-hint">文件格式：每行一个主机，用“|”分隔</span>
+        <span class="import-hint">如：IP|用户|密码|端口</span>
+    </div>
+
     <div id="host-list">
         <!-- 动态添加的主机条目由 JS 渲染 -->
     </div>
 
     <button type="button" class="btn btn-outline" onclick="addHost()">
         + 添加主机
-    </button>
-    <button type="button" class="btn btn-outline" onclick="checkAllHosts()">
-        检测全部主机
     </button>
 
     <div class="form-actions has-prev">

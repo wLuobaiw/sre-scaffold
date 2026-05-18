@@ -194,6 +194,29 @@ legend.collapsed { cursor: pointer; }
 
 .hint { color: var(--muted); font-size: 14px; }
 
+.import-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+.import-hint {
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.error-banner {
+    background: #fef2f2;
+    border: 1px solid var(--danger);
+    color: var(--danger);
+    padding: 10px 16px;
+    border-radius: var(--radius);
+    margin-bottom: 16px;
+    font-size: 14px;
+}
+
 /* ── 主机配置 ───────────────────────────────────────────── */
 .host-fields {
     display: grid;
@@ -210,7 +233,7 @@ legend.collapsed { cursor: pointer; }
     gap: 2px;
 }
 
-.host-fields input, .config-row input {
+.host-fields input, .config-row input, .config-row select {
     padding: 6px 10px;
     border: 1px solid var(--border);
     border-radius: var(--radius);
@@ -238,11 +261,30 @@ legend.collapsed { cursor: pointer; }
     margin-bottom: 4px;
 }
 
+.radio-group {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+}
+
 .radio-inline {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    margin-right: 16px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.required-mark {
+    color: var(--danger);
+    font-weight: bold;
+    margin-left: 2px;
+}
+
+.checkbox-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     font-size: 14px;
     cursor: pointer;
 }

@@ -12,41 +12,37 @@
 {% block content %}
 <h2>步骤 1 —— 选择要部署的组件</h2>
 
-<form method="POST" action="{{ url_for('select') }}">
+{% if clone_error %}
+<div class="error-banner">{{ clone_error }}</div>
+{% endif %}
+
+<form method="POST" action="{{ url_for('select') }}" onsubmit="return validateSelect()">
+    <div id="form-error" class="error-banner" style="display:none"></div>
+
+    {% for cat in categories %}
     <fieldset class="component-group">
-        <legend>基础平台（默认部署，无需额外配置）</legend>
-        {% for comp in base_platform %}
-        <label class="comp-item">
-            <input type="checkbox" name="components" value="{{ comp.key }}" checked>
-            <span class="comp-name">{{ comp.name }}</span>
-            <span class="comp-tag">{{ comp.category }}</span>
-        </label>
+        <legend>{{ cat.name }}</legend>
+        {% for comp in cat.components %}
+        <div class="comp-item-with-version">
+            <label class="comp-item">
+                <input type="checkbox" name="components" value="{{ comp.key }}"
+                       {% if cat.key == "system" %}checked{% endif %}>
+                <span class="comp-name">{{ comp.name }}</span>
+            </label>
+            <select name="version_{{ comp.key }}" class="version-select">
+                <option value="">选择版本</option>
+                {% for v in comp.versions %}
+                <option value="{{ v }}">{{ v }}</option>
+                {% endfor %}
+            </select>
+        </div>
         {% endfor %}
     </fieldset>
+    {% endfor %}
 
-    <fieldset class="component-group">
-        <legend>中间件 & 产品（按需选择）</legend>
-        {% if middleware %}
-            {% for comp in middleware %}
-            <div class="comp-item-with-version">
-                <label class="comp-item">
-                    <input type="checkbox" name="components" value="{{ comp.key }}"
-                           data-has-version="true">
-                    <span class="comp-name">{{ comp.name }}</span>
-                    <span class="comp-tag">{{ comp.category }}</span>
-                </label>
-                <select name="version_{{ comp.key }}" class="version-select" disabled>
-                    <option value="">选择版本</option>
-                    {% for v in comp.versions %}
-                    <option value="{{ v }}">{{ v }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            {% endfor %}
-        {% else %}
-            <p class="hint">未检测到物料目录，请先配置 scaffold-materials 仓库。</p>
-        {% endif %}
-    </fieldset>
+    {% if not categories %}
+    <p class="hint">物料仓库中未检测到可部署组件，请检查 Git 仓库的 ansible/roles/ 目录结构。</p>
+    {% endif %}
 
     <div class="form-actions">
         <button type="submit" class="btn btn-primary">下一步 →</button>
