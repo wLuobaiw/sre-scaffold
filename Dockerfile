@@ -1,4 +1,4 @@
-# 阶段一（构建）：
+# =======================阶段一（构建）=======================
 # 构建 python 镜像，用于构建前后端
 FROM python:3.12-slim AS builder
 
@@ -13,7 +13,7 @@ RUN pip install --no-cache-dir \
 
 
 
-# 阶段二（运行）：
+# =======================阶段二（运行）=======================
 FROM python:3.12-slim
 
 WORKDIR /app
@@ -30,9 +30,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 RUN mkdir -p /root/.ssh && chmod 700 /root/.ssh
 
-# 将 Web 源码打包进镜像
-COPY web/ /app/
+# 预留挂载点 —— web/ 和 toolkit/ 在运行时通过 -v 挂载
+RUN mkdir -p /app/web
 
 EXPOSE 5000
 
-CMD ["python", "app.py"]
+CMD ["python", "web/app.py"]

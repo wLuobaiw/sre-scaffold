@@ -27,7 +27,28 @@
     </div>
 
     <div id="host-list">
-        <!-- 动态添加的主机条目由 JS 渲染 -->
+        {% for h in hosts %}
+        <div class="host-card" data-index="{{ loop.index0 }}">
+            <div class="host-fields">
+                <label>IP / 主机名
+                    <input type="text" name="host_{{ loop.index0 }}_ip" value="{{ h.ip }}" placeholder="192.168.1.10" required>
+                </label>
+                <label>SSH 用户
+                    <input type="text" name="host_{{ loop.index0 }}_user" value="{{ h.ssh_user }}" required>
+                </label>
+                <label>SSH 密码
+                    <input type="password" name="host_{{ loop.index0 }}_password" value="{{ h.ssh_password }}" placeholder="输入 SSH 密码" required>
+                </label>
+                <label>SSH 端口
+                    <input type="number" name="host_{{ loop.index0 }}_port" value="{{ h.ssh_port }}" required>
+                </label>
+            </div>
+            <div class="host-check-result" id="check-result-{{ loop.index0 }}"></div>
+            <button type="button" class="btn btn-sm btn-danger" onclick="this.closest('.host-card').remove()">
+                删除
+            </button>
+        </div>
+        {% endfor %}
     </div>
 
     <button type="button" class="btn btn-outline" onclick="addHost()">

@@ -15,6 +15,9 @@
 {% if clone_error %}
 <div class="error-banner">{{ clone_error }}</div>
 {% endif %}
+{% if form_error %}
+<div class="error-banner">{{ form_error }}</div>
+{% endif %}
 
 <form method="POST" action="{{ url_for('select') }}" onsubmit="return validateSelect()">
     <div id="form-error" class="error-banner" style="display:none"></div>
@@ -26,13 +29,13 @@
         <div class="comp-item-with-version">
             <label class="comp-item">
                 <input type="checkbox" name="components" value="{{ comp.key }}"
-                       {% if cat.key == "system" %}checked{% endif %}>
+                       {% if comp.key in selected_map %}checked{% endif %}>
                 <span class="comp-name">{{ comp.name }}</span>
             </label>
             <select name="version_{{ comp.key }}" class="version-select">
                 <option value="">选择版本</option>
                 {% for v in comp.versions %}
-                <option value="{{ v }}">{{ v }}</option>
+                <option value="{{ v }}" {% if v == selected_map.get(comp.key, '') %}selected{% endif %}>{{ v }}</option>
                 {% endfor %}
             </select>
         </div>

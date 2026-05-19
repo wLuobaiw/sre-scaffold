@@ -30,7 +30,7 @@
             {% for group in deploy_groups %}
             <div class="deploy-group">
                 <span class="deploy-cat">{{ group.category }}:</span>
-                {% for item in group.items %}
+                {% for item in group.components %}
                 <div class="deploy-item" id="status-{{ item.key }}">
                     <span>  {{ item.key }}[{{ item.version }}]</span>
                     <span class="deploy-status waiting">等待执行</span>

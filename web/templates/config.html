@@ -25,6 +25,7 @@
 
         <div class="config-body" {% if comp.no_config %}style="display:none"{% endif %}>
             {% if not comp.no_config %}
+            {% set saved_vars = saved_configs.get(comp.key, {}).get('vars', {}) %}
             <div class="config-grid">
             {% for field in comp.fields %}
             <div class="config-row col-{{ field.col | default(12) }}"
@@ -48,7 +49,9 @@
                     <label>
                         <input type="radio" name="var_{{ comp.key }}_target_hosts"
                                value="{{ loop.index0 }}"
-                               {% if loop.first %}checked{% endif %}>
+                               {% if field.name in saved_vars %}
+                               {% if saved_vars[field.name]|string == loop.index0|string %}checked{% endif %}
+                               {% elif loop.first %}checked{% endif %}>
                         {{ h.ip }} ({{ h.ssh_user }}@{{ h.ssh_port }})
                     </label>
                     {% endfor %}
@@ -61,7 +64,9 @@
                     <label>
                         <input type="checkbox" name="var_{{ comp.key }}_{{ field.name }}"
                                value="{{ opt }}"
-                               {% if opt in (field.default or []) %}checked{% endif %}>
+                               {% if field.name in saved_vars %}
+                               {% if opt in saved_vars[field.name] %}checked{% endif %}
+                               {% elif opt in (field.default or []) %}checked{% endif %}>
                         <span>{{ opt }}</span>
                     </label>
                     {% endfor %}
@@ -73,7 +78,7 @@
                         onchange="updateFieldVisibility('{{ comp.key }}')">
                     <option value="">{{ field.placeholder or "请选择" }}</option>
                     {% for opt in field.options %}
-                    <option value="{{ opt }}" {% if opt == field.default|string %}selected{% endif %}>
+                    <option value="{{ opt }}" {% if field.name in saved_vars and opt == saved_vars[field.name]|string %}selected{% elif field.name not in saved_vars and opt == field.default|string %}selected{% endif %}>
                         {{ opt }}
                     </option>
                     {% endfor %}
@@ -83,7 +88,9 @@
                 <label class="checkbox-inline">
                     <input type="checkbox" name="var_{{ comp.key }}_{{ field.name }}"
                            value="yes"
-                           {% if field.default %}checked{% endif %}
+                           {% if field.name in saved_vars %}
+                           {% if saved_vars[field.name] == "yes" %}checked{% endif %}
+                           {% elif field.default %}checked{% endif %}
                            onchange="updateFieldVisibility('{{ comp.key }}')">
                     {{ field.placeholder or "启用" }}
                 </label>
@@ -91,7 +98,7 @@
                 {% else %}
                 <input type="{{ field.type }}"
                        name="var_{{ comp.key }}_{{ field.name }}"
-                       value="{{ field.default or '' }}"
+                       value="{{ saved_vars.get(field.name, field.default or '') }}"
                        placeholder="{{ field.placeholder or '' }}"
                        {% if field.required %}required{% endif %}>
                 {% endif %}

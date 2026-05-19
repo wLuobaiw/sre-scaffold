@@ -29,7 +29,7 @@ function validateSelect() {
 
 // ── 步骤 2：主机管理 ─────────────────────────────────────────
 
-let hostCount = 1;
+let hostCount = 0;
 
 function downloadTemplate() {
     const content = "192.168.1.10|root|your_password|22\n192.168.1.11|root|your_password|22\n";
@@ -55,7 +55,7 @@ function importHosts(input) {
     reader.onload = function (e) {
         // 清空现有主机
         document.getElementById("host-list").innerHTML = "";
-        hostCount = 1;
+        hostCount = 0;
 
         const lines = e.target.result.split(/\r?\n/);
         for (const line of lines) {
@@ -90,7 +90,13 @@ function addHost() {
 // 页面加载初始化
 document.addEventListener("DOMContentLoaded", () => {
     if (document.getElementById("host-list")) {
-        addHost();
+        // 已有服务端渲染的主机卡片时，同步计数器；否则添加一个空卡片
+        const existingCards = document.querySelectorAll("#host-list .host-card");
+        if (existingCards.length > 0) {
+            hostCount = existingCards.length;
+        } else {
+            addHost();
+        }
     }
     // 触发所有组件的条件字段可见性
     document.querySelectorAll(".config-section").forEach(section => {

@@ -1,6 +1,7 @@
 """sre-scaffold Web 应用 —— Flask 入口 + 路由。"""
 
 import json
+import re
 import time
 
 from flask import (
@@ -94,13 +95,29 @@ def select():
                     if c["key"] == comp:
                         comp_by_cat.setdefault(cat["key"], {})[comp] = v
                         break
+        # 服务端校验：至少选一个有效组件（有版本号）
+        if not comp_by_cat:
+            return render_template(
+                "select.html",
+                categories=categories,
+                clone_error=None,
+                selected_map={},
+                form_error="请至少选择一个组件并指定版本",
+            ), 400
         session["selected_components"] = comp_by_cat
         return redirect("/hosts")
+
+    # 从 session 构建回填映射 {comp_key: version}
+    selected_map = {}
+    for comps in session.get("selected_components", {}).values():
+        for comp_key, version in comps.items():
+            selected_map[comp_key] = version
 
     return render_template(
         "select.html",
         categories=categories,
         clone_error=clone_error,
+        selected_map=selected_map,
     )
 
 
@@ -122,20 +139,24 @@ def hosts():
         return redirect("/select")
 
     if request.method == "POST":
+        # 用正则从表单中提取所有主机索引，避免删除卡片导致索引不连续时数据丢失
+        indices = set()
+        for key in request.form:
+            m = re.match(r"host_(\d+)_ip", key)
+            if m:
+                indices.add(int(m.group(1)))
         hosts_data = []
-        i = 0
-        while f"host_{i}_ip" in request.form:
+        for i in sorted(indices):
             hosts_data.append({
                 "ip": request.form.get(f"host_{i}_ip", ""),
                 "ssh_user": request.form.get(f"host_{i}_user", "root"),
                 "ssh_password": request.form.get(f"host_{i}_password", ""),
                 "ssh_port": request.form.get(f"host_{i}_port", "22"),
             })
-            i += 1
         session["hosts"] = hosts_data
         return redirect("/config")
 
-    return render_template("hosts.html")
+    return render_template("hosts.html", hosts=session.get("hosts", []))
 
 
 # ── API：检测单台主机连通性 ──────────────────────────────────────
@@ -215,22 +236,25 @@ def config():
         "config.html",
         components=config_items,
         hosts=session["hosts"],
+        saved_configs=session.get("component_configs", {}),
     )
 
 
 # ── 步骤 4：部署确认 + 执行 ──────────────────────────────────────
 
-@app.route("/deploy", methods=["GET", "POST"])
+@app.route("/deploy")
 def deploy():
     """
     步骤 4 —— 展示部署摘要，确认后通过 SSE 执行并查看实时日志。
-
-    GET:  渲染摘要页（主机 / 组件 / 版本 / 配置参数）。
 
     :return: 渲染 deploy.html
     """
     if "selected_components" not in session:
         return redirect("/select")
+    if "hosts" not in session:
+        return redirect("/hosts")
+    if "component_configs" not in session:
+        return redirect("/config")
 
     selected = session["selected_components"]
     hosts = session.get("hosts", [])
@@ -258,7 +282,7 @@ def deploy():
                 "target_hosts": target_hosts,
                 "vars": extra_vars,
             })
-        deploy_groups.append({"category": cat_key, "items": items})
+        deploy_groups.append({"category": cat_key, "components": items})
 
     # 拼装给 ansible-playbook 传参用的扁平字典
     flat_configs = _flatten_config(configs)
@@ -286,13 +310,14 @@ def deploy_stream():
     :return: text/event-stream，持续推送至部署结束
     """
 
-    def generate():
-        selected = session.get("selected_components", {})
+    # 在生成器外部提取 session 数据 —— 生成器执行时请求上下文可能已销毁
+    selected = session.get("selected_components", {})
+    layers = []
+    for cat_key, comps in selected.items():
+        for name in comps:
+            layers.append((cat_key, name))
 
-        layers = []
-        for cat_key, comps in selected.items():
-            for name in comps:
-                layers.append((cat_key, name))
+    def generate():
 
         event_id = 0
         for layer_name, item_name in layers:

@@ -152,6 +152,7 @@ info "正在启动容器..."
 docker run -d \
     -p "${FLASK_PORT}:5000" \
     -v /var/run/docker.sock:/var/run/docker.sock \
+    -v "${SCRIPT_DIR}/web:/app/web" \
     --name "${CONTAINER_NAME}" \
     --restart unless-stopped \
     "${IMAGE_NAME}"
