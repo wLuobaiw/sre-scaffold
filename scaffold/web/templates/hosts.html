@@ -12,7 +12,7 @@
 {% block content %}
 <h2>步骤 2 —— 配置目标主机</h2>
 
-<form method="POST" action="{{ url_for('hosts') }}" id="hosts-form">
+<form method="POST" action="{{ url_for('select.hosts') }}" id="hosts-form">
     <div class="import-bar">
         <label class="btn btn-sm btn-outline">
             导入主机
@@ -56,7 +56,7 @@
     </button>
 
     <div class="form-actions has-prev">
-        <a href="{{ url_for('select') }}" class="btn">← 上一步</a>
+        <a href="{{ url_for('select.select') }}" class="btn">← 上一步</a>
         <button type="submit" class="btn btn-primary">下一步 →</button>
     </div>
 </form>
