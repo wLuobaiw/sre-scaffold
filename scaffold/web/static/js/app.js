@@ -4,14 +4,12 @@ function validateSelect() {
     const errorDiv = document.getElementById("form-error");
     const checkboxes = document.querySelectorAll('input[name="components"]:checked');
 
-    // 至少选择一个组件
     if (checkboxes.length === 0) {
         errorDiv.textContent = "请至少选择一个组件";
         errorDiv.style.display = "block";
         return false;
     }
 
-    // 每个勾选的组件必须选择版本
     for (const cb of checkboxes) {
         const versionSelect = cb.closest(".comp-item-with-version")
             ?.querySelector(".version-select");
@@ -26,6 +24,7 @@ function validateSelect() {
     errorDiv.style.display = "none";
     return true;
 }
+
 
 // ── 步骤 2：主机管理 ─────────────────────────────────────────
 
@@ -53,7 +52,6 @@ function importHosts(input) {
 
     const reader = new FileReader();
     reader.onload = function (e) {
-        // 清空现有主机
         document.getElementById("host-list").innerHTML = "";
         hostCount = 0;
 
@@ -76,7 +74,7 @@ function importHosts(input) {
         }
     };
     reader.readAsText(file);
-    input.value = "";  // 允许重复导入同一文件
+    input.value = "";
 }
 
 function addHost() {
@@ -87,18 +85,12 @@ function addHost() {
     hostCount++;
 }
 
-// 页面加载初始化
 document.addEventListener("DOMContentLoaded", () => {
     if (document.getElementById("host-list")) {
-        // 已有服务端渲染的主机卡片时，同步计数器；否则添加一个空卡片
         const existingCards = document.querySelectorAll("#host-list .host-card");
-        if (existingCards.length > 0) {
-            hostCount = existingCards.length;
-        } else {
-            addHost();
-        }
+        hostCount = existingCards.length > 0 ? existingCards.length : 0;
+        if (hostCount === 0) addHost();
     }
-    // 触发所有组件的条件字段可见性
     document.querySelectorAll(".config-section").forEach(section => {
         const id = section.id;
         if (id && id.startsWith("config-")) {
@@ -106,6 +98,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 });
+
 
 // ── 主机连通性检测 ──────────────────────────────────────────
 
@@ -141,36 +134,57 @@ async function checkHost(index) {
 }
 
 function checkAllHosts() {
-    const cards = document.querySelectorAll(".host-card");
-    cards.forEach(card => {
-        const idx = card.dataset.index;
-        checkHost(idx);
+    document.querySelectorAll(".host-card").forEach(card => {
+        checkHost(card.dataset.index);
     });
 }
 
+
 // ── 步骤 3：配置表单交互 ────────────────────────────────────
 
-function toggleConfig(key) {
-    const body = document.querySelector(`#config-${key} .config-body`);
-    const legend = document.querySelector(`#config-${key} legend`);
-    if (body) {
-        const isHidden = body.style.display === "none";
-        body.style.display = isHidden ? "block" : "none";
-        if (legend) legend.classList.toggle("collapsed", !isHidden);
-    }
+function toggleSection(btn, sectionId) {
+    const body = document.getElementById("section-" + sectionId);
+    if (!body) return;
+    const isHidden = body.style.display === "none";
+    body.style.display = isHidden ? "block" : "none";
+    btn.textContent = isHidden ? "▾ " + btn.textContent.replace(/^[▸▾] /, "")
+                               : "▸ " + btn.textContent.replace(/^[▸▾] /, "");
 }
 
+/**
+ * 根据 show_when 条件控制字段/主机组可见性。
+ * data-show-when-field 为空时不处理。
+ */
 function updateFieldVisibility(compKey) {
     const section = document.getElementById("config-" + compKey);
     if (!section) return;
 
-    section.querySelectorAll(".config-row[data-show-if]").forEach(row => {
-        const dependsOn = row.dataset.showIf;
-        const trigger = section.querySelector(`input[name="var_${compKey}_${dependsOn}"]`);
+    section.querySelectorAll("[data-show-when-field]").forEach(row => {
+        const fieldName = row.dataset.showWhenField;
+        const expectedVal = row.dataset.showWhenValue;
+        if (!fieldName) return;
+
+        // 查找触发器：可能是 var 输入或 hosts 输入
+        const trigger = section.querySelector(
+            `[name="var_${compKey}_${fieldName}"], [name="hosts_${compKey}_${fieldName}"]`
+        );
         if (!trigger) return;
-        row.style.display = trigger.checked ? "" : "none";
+
+        let visible = false;
+        if (trigger.type === "checkbox") {
+            if (expectedVal === "true" || expectedVal === "True") {
+                visible = trigger.checked;
+            } else {
+                visible = !trigger.checked;
+            }
+        } else {
+            visible = String(trigger.value) === String(expectedVal);
+        }
+
+        row.style.display = visible ? "" : "none";
     });
 }
+
 
 // ── 步骤 4：部署执行 + 日志流 ──────────────────────────────
 
@@ -192,10 +206,8 @@ function startDeploy() {
             const statusEl = document.querySelector(`#status-${data.comp} .deploy-status`);
             if (statusEl) {
                 statusEl.className = `deploy-status ${data.status}`;
-                if (data.status === "download") statusEl.textContent = "正在下载...";
-                else if (data.status === "installing") statusEl.textContent = "正在安装...";
-                else if (data.status === "done") statusEl.textContent = "已安装√";
-                else if (data.status === "error") statusEl.textContent = "失败";
+                const labels = {download: "下载中...", installing: "安装中...", done: "已安装 ✓", error: "失败"};
+                statusEl.textContent = labels[data.status] || data.status;
             }
         } else if (data.type === "log") {
             let cls = "";
@@ -204,7 +216,7 @@ function startDeploy() {
             else if (data.text.startsWith("TASK")) cls = "task";
             else if (data.text.startsWith("PLAY")) cls = "play";
             else if (data.text.startsWith("✓")) cls = "done";
-            else if (data.text.startsWith("→")) cls = "download";
+            else if (data.text.startsWith("✗")) cls = "error";
 
             logOutput.insertAdjacentHTML("beforeend",
                 `<div class="log-line ${cls}">${data.text}</div>`);

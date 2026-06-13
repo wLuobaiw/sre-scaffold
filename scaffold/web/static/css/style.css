@@ -474,6 +474,70 @@ legend.collapsed { cursor: pointer; }
     margin-left: auto;
 }
 
+/* ── 高级配置折叠 ─────────────────────────────── */
+.advanced-section {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px dashed #ddd;
+}
+
+.advanced-toggle {
+    background: none;
+    border: none;
+    color: #3b82f6;
+    cursor: pointer;
+    font-size: 0.9rem;
+    padding: 4px 0;
+}
+
+.advanced-toggle:hover {
+    color: #2563eb;
+}
+
+.advanced-body {
+    margin-top: 12px;
+}
+
+/* ── 只读字段 ─────────────────────────────────── */
+.field-readonly {
+    background: #f3f4f6;
+    color: #6b7280;
+    cursor: not-allowed;
+}
+
+/* ── 主机组 ───────────────────────────────────── */
+.host-group-row {
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.group-name-tag {
+    font-size: 0.75rem;
+    background: #e0e7ff;
+    color: #3730a3;
+    padding: 1px 6px;
+    border-radius: 4px;
+    margin-left: 6px;
+}
+
+/* ── 主机复选框列表 ───────────────────────────── */
+.host-checkboxes label {
+    display: block;
+    margin-bottom: 4px;
+    cursor: pointer;
+}
+
+.host-checkboxes input {
+    margin-right: 6px;
+}
+
+/* ── 配置描述 ─────────────────────────────────── */
+.config-desc {
+    color: #6b7280;
+    font-size: 0.9rem;
+    margin-bottom: 12px;
+}
+
 /* checkbox/radio 本体微调 */
 .config-row input[type="radio"],
 .config-row input[type="checkbox"] {

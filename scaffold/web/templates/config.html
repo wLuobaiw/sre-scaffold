@@ -12,107 +12,162 @@
 {% block content %}
 <h2>步骤 3 —— 逐组件详细配置</h2>
 
-<form method="POST" action="{{ url_for('config') }}">
+<form method="POST" action="{{ url_for('config.config') }}">
     {% for comp in components %}
-    <fieldset class="config-section {% if comp.no_config %}no-config{% endif %}"
-              id="config-{{ comp.key }}">
-        <legend {% if comp.no_config %}class="collapsed" onclick="toggleConfig('{{ comp.key }}')"{% endif %}>
-            {{ comp.key }} <span class="ver">{{ comp.version }}</span>
-            {% if comp.no_config %}
-            <span class="no-config-tag">无需配置</span>
-            {% endif %}
+    <fieldset class="config-section" id="config-{{ comp.key }}">
+        <legend>
+            {{ comp.name or comp.key }}
+            <span class="ver">{{ comp.version }}</span>
         </legend>
 
-        <div class="config-body" {% if comp.no_config %}style="display:none"{% endif %}>
-            {% if not comp.no_config %}
-            {% set saved_vars = saved_configs.get(comp.key, {}).get('vars', {}) %}
-            <div class="config-grid">
-            {% for field in comp.fields %}
-            <div class="config-row col-{{ field.col | default(12) }}"
-                 {% if field.show_if %}
-                 data-show-if="{{ field.show_if }}"
-                 style="display:none"
-                 {% endif %}>
-                <label>
-                    {{ field.label }}
-                    {% if field.required %}<span class="required-mark">*</span>{% endif %}
-                </label>
+        {% if comp.description %}
+        <p class="config-desc">{{ comp.description }}</p>
+        {% endif %}
 
-                {% if field.type == "target_hosts" %}
-                {% if field.default and field.default == "all" %}
-                <!-- 全部主机，无需选择 -->
-                <input type="hidden" name="var_{{ comp.key }}_target_hosts" value="all">
-                <span class="hint">全部主机 ({{ hosts|length }} 台)</span>
-                {% else %}
-                <div class="host-checkboxes">
-                    {% for h in hosts %}
+        <div class="config-body">
+            {% set saved = saved_configs.get(comp.key, {}) %}
+            {% set saved_hosts = saved.get('hosts', {}) %}
+            {% set saved_vars = saved.get('vars', {}) %}
+
+            {# ── 主机选择（仅在需要时渲染）── #}
+            {% if comp.needs_host_ui %}
+            <div class="host-groups">
+                {% for hg in comp.hosts %}
+                <div class="config-row col-12 host-group-row"
+                     data-show-when-field="{{ hg.show_when.keys()|first|default('') }}"
+                     data-show-when-value="{{ hg.show_when.values()|first|default('') }}"
+                     {% if hg.show_when %}style="display:none"{% endif %}>
                     <label>
-                        <input type="radio" name="var_{{ comp.key }}_target_hosts"
-                               value="{{ loop.index0 }}"
-                               {% if field.name in saved_vars %}
-                               {% if saved_vars[field.name]|string == loop.index0|string %}checked{% endif %}
-                               {% elif loop.first %}checked{% endif %}>
-                        {{ h.ip }} ({{ h.ssh_user }}@{{ h.ssh_port }})
+                        {{ hg.label }}
+                        <span class="group-name-tag">{{ hg.name }}</span>
                     </label>
-                    {% endfor %}
+
+                    {% set sel = saved_hosts.get(hg.name, hg.default) %}
+
+                    {% if hg.default == "all" and not hg.multiple %}
+                    <input type="hidden" name="hosts_{{ comp.key }}_{{ hg.name }}" value="all">
+                    <span class="hint">全部主机 ({{ comp._hosts|length }} 台)</span>
+
+                    {% elif hg.multiple %}
+                    <div class="host-checkboxes">
+                        {% for h in comp._hosts %}
+                        <label>
+                            <input type="checkbox" name="hosts_{{ comp.key }}_{{ hg.name }}"
+                                   value="{{ loop.index0 }}"
+                                   {% if sel is not none and loop.index0|string in (sel if sel is iterable and sel is not string else [sel|string]) %}checked{% endif %}>
+                            {{ h.ip }} ({{ h.ssh_user }}@{{ h.ssh_port }})
+                        </label>
+                        {% endfor %}
+                    </div>
+
+                    {% else %}
+                    <div class="host-checkboxes">
+                        {% for h in comp._hosts %}
+                        <label>
+                            <input type="radio" name="hosts_{{ comp.key }}_{{ hg.name }}"
+                                   value="{{ loop.index0 }}"
+                                   {% if sel is not none and sel|string == loop.index0|string %}checked
+                                   {% elif sel == "all" and loop.first %}checked
+                                   {% elif loop.first and sel is none %}checked{% endif %}>
+                            {{ h.ip }} ({{ h.ssh_user }}@{{ h.ssh_port }})
+                        </label>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
                 </div>
-                {% endif %}
-
-                {% elif field.type == "select" and field.multiple %}
-                <div class="select-list-box">
-                    {% for opt in field.options %}
-                    <label>
-                        <input type="checkbox" name="var_{{ comp.key }}_{{ field.name }}"
-                               value="{{ opt }}"
-                               {% if field.name in saved_vars %}
-                               {% if opt in saved_vars[field.name] %}checked{% endif %}
-                               {% elif opt in (field.default or []) %}checked{% endif %}>
-                        <span>{{ opt }}</span>
-                    </label>
-                    {% endfor %}
-                </div>
-
-                {% elif field.type == "select" %}
-                <select name="var_{{ comp.key }}_{{ field.name }}"
-                        {% if field.required %}required{% endif %}
-                        onchange="updateFieldVisibility('{{ comp.key }}')">
-                    <option value="">{{ field.placeholder or "请选择" }}</option>
-                    {% for opt in field.options %}
-                    <option value="{{ opt }}" {% if field.name in saved_vars and opt == saved_vars[field.name]|string %}selected{% elif field.name not in saved_vars and opt == field.default|string %}selected{% endif %}>
-                        {{ opt }}
-                    </option>
-                    {% endfor %}
-                </select>
-
-                {% elif field.type == "bool" %}
-                <label class="checkbox-inline">
-                    <input type="checkbox" name="var_{{ comp.key }}_{{ field.name }}"
-                           value="yes"
-                           {% if field.name in saved_vars %}
-                           {% if saved_vars[field.name] == "yes" %}checked{% endif %}
-                           {% elif field.default %}checked{% endif %}
-                           onchange="updateFieldVisibility('{{ comp.key }}')">
-                    {{ field.placeholder or "启用" }}
-                </label>
-
-                {% else %}
-                <input type="{{ field.type }}"
-                       name="var_{{ comp.key }}_{{ field.name }}"
-                       value="{{ saved_vars.get(field.name, field.default or '') }}"
-                       placeholder="{{ field.placeholder or '' }}"
-                       {% if field.required %}required{% endif %}>
-                {% endif %}
-            </div>
-            {% endfor %}
+                {% endfor %}
             </div>
             {% endif %}
+
+            {# ── 配置分区 ── #}
+            {% if comp.needs_vars_ui and comp.sections %}
+            {% for section in comp.sections %}
+                {% if section.fields %}
+                <div class="config-section-block {% if section.collapsed %}collapsed-init{% endif %}">
+                    {% if section.name %}
+                    <div class="section-header">
+                        {% if section.collapsed %}
+                        <button type="button" class="section-toggle"
+                                onclick="toggleSection(this, '{{ comp.key }}-{{ loop.index }}')">
+                            ▸ {{ section.name }}
+                        </button>
+                        {% else %}
+                        <span class="section-title">{{ section.name }}</span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                    <div class="config-grid" id="section-{{ comp.key }}-{{ loop.index }}"
+                         {% if section.collapsed %}style="display:none"{% endif %}>
+                        {% for field in section.fields %}
+                            {{ render_field(field, comp.key, saved_vars) }}
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            {% endfor %}
+            {% elif comp.needs_host_ui %}
+            <p class="hint">该组件无需额外配置</p>
+            {% endif %}
+
         </div>
     </fieldset>
     {% endfor %}
 
     <div class="form-actions has-prev">
-        <a href="{{ url_for('hosts') }}" class="btn">← 上一步</a>
+        <a href="{{ url_for('select.hosts') }}" class="btn">← 上一步</a>
         <button type="submit" class="btn btn-primary">下一步 →</button>
     </div>
 </form>
 {% endblock %}
+
+
+{# ── 字段渲染宏 ── #}
+{% macro render_field(field, comp_key, saved_vars) %}
+{% set input_name = "var_" + comp_key + "_" + field.name %}
+{% set saved_val = saved_vars.get(field.name) %}
+
+<div class="config-row"
+     data-show-when-field="{{ field.show_when.keys()|first|default('') }}"
+     data-show-when-value="{{ field.show_when.values()|first|default('') }}"
+     {% if field.show_when %}style="display:none"{% endif %}>
+    <label>
+        {{ field.label }}
+        {% if field.required %}<span class="required-mark">*</span>{% endif %}
+    </label>
+
+    {% if field.widget == "select" and field.options and field.options[0].value is defined %}
+    <select name="{{ input_name }}"
+            {% if field.required %}required{% endif %}
+            onchange="updateFieldVisibility('{{ comp_key }}')">
+        <option value="">{{ field.placeholder or "请选择" }}</option>
+        {% for opt in field.options %}
+        <option value="{{ opt.value }}"
+                {% if saved_val is not none and opt.value|string == saved_val|string %}selected
+                {% elif saved_val is none and opt.value|string == field.default|string %}selected
+                {% endif %}>
+            {{ opt.label }}
+        </option>
+        {% endfor %}
+    </select>
+
+    {% elif field.widget == "bool" %}
+    <label class="checkbox-inline">
+        <input type="checkbox" name="{{ input_name }}" value="yes"
+               {% if saved_val is not none %}
+               {% if saved_val == "yes" %}checked{% endif %}
+               {% elif field.default %}checked{% endif %}
+               onchange="updateFieldVisibility('{{ comp_key }}')">
+        {{ field.placeholder or "启用" }}
+    </label>
+
+    {% else %}
+    <input type="{{ 'number' if field.widget == 'number' else 'password' if field.widget == 'password' else 'text' }}"
+           name="{{ input_name }}"
+           value="{{ saved_val if saved_val is not none else field.default or '' }}"
+           placeholder="{{ field.placeholder or '' }}"
+           {% if field.required %}required{% endif %}
+           {% if field.readonly %}readonly class="field-readonly"{% endif %}>
+    {% endif %}
+</div>
+{% endmacro %}
