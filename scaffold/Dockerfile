@@ -30,8 +30,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 RUN mkdir -p /root/.ssh && chmod 700 /root/.ssh
 
-# 预留挂载点 —— web/ 和 toolkit/ 在运行时通过 -v 挂载
+# 预留挂载点 —— 运行时通过 -v 挂载
 RUN mkdir -p /app/web
+RUN mkdir -p /app/toolkit
 
 EXPOSE 5000
 

@@ -124,7 +124,7 @@ fi
 
 if [ "$NEED_BUILD" = true ]; then
     info "正在构建 Docker 镜像..."
-    docker build -t "${IMAGE_NAME}" -f Dockerfile .
+    bash "${SCRIPT_DIR}/scaffold/build.sh" "${IMAGE_NAME}"
 fi
 
 # ── 启动容器 ─────────────────────────────────────────────────
@@ -152,7 +152,8 @@ info "正在启动容器..."
 docker run -d \
     -p "${FLASK_PORT}:5000" \
     -v /var/run/docker.sock:/var/run/docker.sock \
-    -v "${SCRIPT_DIR}/web:/app/web" \
+    -v "${SCRIPT_DIR}/scaffold/web:/app/web" \
+    -v "${SCRIPT_DIR}/toolkit:/app/toolkit" \
     --name "${CONTAINER_NAME}" \
     --restart unless-stopped \
     "${IMAGE_NAME}"

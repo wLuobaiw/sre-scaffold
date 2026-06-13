@@ -8,14 +8,28 @@ import yaml
 
 def ensure_repo(repo_url, local_path):
     """
-    确保物料仓库在本地存在且为最新。已存在则执行 git pull，不存在则 git clone。
+    确保物料仓库在本地可用。
 
-    :param repo_url: Git 仓库远程地址
+    repo_url 为空时（co-located 模式），仅校验本地路径是否存在；
+    repo_url 非空时，执行 git clone 或 git pull（远程模式）。
+
+    :param repo_url: Git 仓库远程地址，空字符串表示 co-located 模式
     :param local_path: 本地存储目录
+    :raises FileNotFoundError: co-located 模式下路径不存在
     :raises subprocess.CalledProcessError: git 命令执行失败时抛出
     """
     local = Path(local_path)
 
+    # co-located 模式 —— toolkit 与 sre-scaffold 同仓库管理，无需 clone
+    if not repo_url:
+        if not local.is_dir():
+            raise FileNotFoundError(
+                f"物料仓库未找到: {local_path}。"
+                "请确认 toolkit/ 已挂载或 MATERIALS_LOCAL_PATH 设置正确。"
+            )
+        return
+
+    # 远程模式 —— 通过 git 获取
     if (local / ".git").is_dir():
         subprocess.run(
             ["git", "-C", str(local), "pull", "--ff-only"],
