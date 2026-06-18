@@ -30,5 +30,9 @@ COPY . .
 RUN mkdir -p /root/.ssh && chmod 700 /root/.ssh
 RUN mkdir -p /app/toolkit
 
+# entrypoint —— 启动前校验挂载，缺少参数时打印帮助并退出
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 EXPOSE 5000
-CMD ["python", "web/app.py"]
+ENTRYPOINT ["/entrypoint.sh"]
